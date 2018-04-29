@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+
+<html lang="zh-Hant-TW">
+  <head>
+  <meta charset="utf-8" />
+    <title> Taipei Crimial Map</title>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <meta content="" name="description" />
+    <meta content="" name="author" />
+    <link rel="stylesheet" type="text/css" href="./semantic/semantic.min.css">
+    <script type="text/javascript" src="./js/jquery-2.1.4.min.js"></script>
+    
+    <script type="text/javascript">
+    var map,heatlay;
+    var source_data = {data:[
+      {name:'child',id:'1TKIXcP2Nh_NZShEhdjvoNNP-y8W3g-ZDsPB6sO3k'},
+      {name:'bike_stole',id:'1oTR47BnguZhYOA5fXpz3I5RqigeVvOW6ah5Rhy5r'},
+      {name:'car_stole',id:'1Wn8OcwAq8UXqHI7vcOJtFy5mDi8y3xGGlP57CbhY'},
+      {name:'home_stole',id:'12KTz7SLjF-Sk5hB1h_mT0JgUNWwjwppO1LEU0aCY'}
+    ]};
+    function load_data(type,th)
+    {
+      if($(th).hasClass('active'))
+      {
+        $(th).removeClass('active');
+        window[source_data.data[type].name].setMap(null);
+      }
+      else
+      {
+          window[source_data.data[type].name] = new google.maps.FusionTablesLayer({
+          query: {
+            from: source_data.data[type].id
+          },
+          options: {
+            styleId: 2
+          }
+        });  
+        window[source_data.data[type].name].setMap(map);
+        $(th).addClass('active');
+      }
+
+    }
+    function CenterControl(controlDiv, map)
+    {
+      controlDiv.style.clear = 'both';
+      var controlPanel = document.createElement('div');
+      controlPanel.id = 'controlPanel';
+      html = "<div class='ui raised segment'>";
+      html += "<button class='tiny ui icon button' onclick='getCurr();'> <i class='map icon'></i> </button>";
+      html += "<button class='tiny ui pink button' type='button' onclick='load_data(0,this)'><i class='female icon'></i>婦幼犯罪被害地點</button>";
+      html += "<button class='tiny ui white button' type='button' onclick='load_data(1,this)'><i class='road icon'></i>自行車竊盜點位資訊</button>";
+      html += "<button class='tiny ui orange button' type='button' onclick='load_data(2,this)'><i class='car icon'></i>汽機車竊盜點位資訊</button>";
+      html += "<button class='tiny ui yellow button' type='button' onclick='load_data(3,this)'><i class='home icon'></i>住宅竊盜點位資訊</button>";   
+      html += "</div>";
+      controlDiv.innerHTML = html;
+
+    }
+    function getCurr()
+    {
+      if(navigator.geolocation)
+      {
+        navigator.geolocation.getCurrentPosition(function(data){
+          curr_long=data.coords.longitude;curr_lati=data.coords.latitude;
+          map.setCenter({lat:curr_lati,lng:curr_long});
+          var marker = new google.maps.Marker({
+            position: {lat: curr_lati, lng: curr_long},
+            map: map,
+            icon: {url: './img/curr.png'}
+          });        
+        },function(){alert('讀取所在位置發生錯誤!');});
+      }
+      else
+      {
+          alert('您的瀏覽器不支援!');
+      }   
+    }
+    function initMap()
+    {      
+      map = new google.maps.Map(document.getElementById('map'), {
+        center: {lat: 25.0884279, lng: 121.5187367},
+        zoom: 15
+      });
+            var centerControlDiv = document.createElement('div');
+            var centerControl = new CenterControl(centerControlDiv, map);
+
+            centerControlDiv.index = 1;
+            centerControlDiv.style['padding-top'] = '10px';
+            map.controls[google.maps.ControlPosition.BOTTOM_CENTER].push(centerControlDiv);
+    }
+    </script>
+    <style type="text/css">
+      html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      #map {
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCce21aJYG27BW4HjgT_SZmb1Fx4TdVh5k&language=zh-TW&callback=initMap" type="text/javascript"></script>
+  </body>
+</html>

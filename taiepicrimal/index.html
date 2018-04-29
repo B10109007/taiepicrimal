@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+
+<html lang="zh-Hant-TW">
+  <head>
+  <meta charset="utf-8" />
+    <title> Taipei Crimial Map</title>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <meta content="" name="description" />
+    <meta content="" name="author" />
+    <link rel="stylesheet" type="text/css" href="./semantic/semantic.min.css">
+    <script type="text/javascript" src="./js/jquery-2.1.4.min.js"></script>
+    
+    <script type="text/javascript">
+    var taipei_lat = 25.0884279, taipei_lng = 121.5187367;
+    var map,heatmap;
+    var marker_curr=null;
+    var marker_child = [];
+    var marker_bike = [];
+    var marker_car = [];
+    var marker_home = []; 
+    var marker_search =  [];   
+    var source = ['child','bike','car','home'];
+    function load_data(type,th)
+    {
+      if($(th).hasClass('active'))
+      {
+        eval('marker_'+source[type]).each(function(marker){
+          marker.setMap(null);
+        }); 
+        $(th).removeClass('active');
+      }
+      else
+      {
+        $(th).addClass('active');
+        $(th).addClass('loading');
+        $(th).attr('disabled','disabled');
+        $.getJSON('./data/'+source[type]+'.json',null,function(data){
+          for(i=0;i<data.results.length;i++)
+          {
+            var marker = new google.maps.Marker({
+              animation: google.maps.Animation.DROP,
+              position: {lat: data.results[i].lat, lng: data.results[i].lng},
+              icon: {url: './img/'+source[type]+'.png'},
+              title: data.results[i].info,
+              map: map
+            });
+
+            marker.addListener('click',function(){
+              var infowindow = new google.maps.InfoWindow({
+                content: this.title
+              });
+              infowindow.open(map,this);              
+            });
+            eval('marker_'+source[type]).push(marker);
+          }
+        $(th).removeClass('loading');
+        $(th).removeAttr('disabled','disabled');
+        });
+      }
+      map.setZoom(12);
+      map.setCenter({lat: taipei_lat, lng: taipei_lng});
+    }
+    function heat(th)
+    {
+      if($(th).hasClass('active'))
+      {      
+        heatmap.setMap(null);
+        $(th).removeClass('active');
+      }
+      else
+      {
+        $(th).addClass('active');
+        $(th).addClass('loading');
+        $(th).attr('disabled','disabled');
+        
+        $.getJSON('./data/total.json',null,function(data){
+          var allPoint=new Array();
+          for(i=0;i<data.results.length;i++)
+          {
+            allPoint.push(new google.maps.LatLng(data.results[i][1],data.results[i][0]));
+          }
+          heatmap = new google.maps.visualization.HeatmapLayer({
+            data: allPoint,
+            map: map
+          });  
+          map.setZoom(12);
+          map.setCenter({lat: taipei_lat, lng: taipei_lng});
+          $(th).removeClass('loading');
+          $(th).removeAttr('disabled','disabled');    
+        }); 
+      }
+
+    }
+    function CenterControl(controlDiv)
+    {
+      controlDiv.style.clear = 'both';
+      html = "<div class='ui raised segment'>";
+      html += "<button class='tiny ui pink button' type='button' onclick='load_data(0,this)'><i class='female icon'></i>婦幼犯罪被害地點</button>";
+      html += "<button class='tiny ui white button' type='button' onclick='load_data(1,this)'><i class='road icon'></i>自行車竊盜點位資訊</button>";
+      html += "<button class='tiny ui orange button' type='button' onclick='load_data(2,this)'><i class='car icon'></i>汽機車竊盜點位資訊</button>";
+      html += "<button class='tiny ui yellow button' type='button' onclick='load_data(3,this)'><i class='home icon'></i>住宅竊盜點位資訊</button>";
+      html += "<p></p><button class='tiny ui icon button' onclick='getCurr();'> <i class='map icon'></i> 目前位置</button>";
+      html += "<button class='tiny ui red button' type='button' onclick='heat(this)'><i class='area chart icon'></i>危險分析</button>";     
+      html += "</div>";
+      controlDiv.innerHTML = html;
+
+    }
+    function getCurr()
+    {
+      if(navigator.geolocation)
+      {
+        if(marker_curr==null)
+        {
+          navigator.geolocation.getCurrentPosition(function(data){
+            curr_long=data.coords.longitude;curr_lati=data.coords.latitude;
+            map.setCenter({lat:curr_lati,lng:curr_long});
+            var marker = new google.maps.Marker({
+              position: {lat: curr_lati, lng: curr_long},
+              map: map,
+              icon: {url: './img/curr.png'}
+            });        
+            marker_curr = marker;
+            map.setZoom(18);
+          },function(){alert('讀取所在位置發生錯誤!');});
+        }
+        else
+        {
+          marker_curr.setMap(null);
+          marker_curr = null;
+          getCurr();
+        }
+      }
+      else
+      {
+          alert('您的瀏覽器不支援!');
+      }   
+    }
+    function initMap()
+    {      
+      map = new google.maps.Map(document.getElementById('map'), {
+        center: {lat: taipei_lat, lng: taipei_lng},
+        zoom: 15
+      });
+      
+      var centerControlDiv = document.createElement('div');
+      var centerControl = new CenterControl(centerControlDiv, map);
+      centerControlDiv.index = 1;
+      centerControlDiv.style['padding-bottom'] = '10px';
+      map.controls[google.maps.ControlPosition.BOTTOM_CENTER].push(centerControlDiv);
+
+      var input = document.createElement('input');
+      input.id = 'pac-input';
+      input.placeholder = '搜尋地址';
+      input.style['margin-top'] = '10px';
+      input.style['margin-right'] = '10px';
+      input.style['padding'] = '10px';
+      input.style['min-width'] = '150px';
+      var searchBox = new google.maps.places.SearchBox(input);
+      map.controls[google.maps.ControlPosition.TOP_RIGHT].push(input);
+
+      map.addListener('bounds_changed', function() {
+        searchBox.setBounds(map.getBounds());
+      });
+      searchBox.addListener('places_changed', function() {
+          var places = searchBox.getPlaces();
+          if (places.length == 0)
+          {
+            return;
+          }
+
+        marker_search.forEach(function(marker) {
+          marker.setMap(null);
+        });
+        marker_search = [];
+
+        var bounds = new google.maps.LatLngBounds();
+        places.forEach(function(place) {
+          marker_search.push(new google.maps.Marker({
+            map: map,
+            icon: {url: './img/find.png'},
+            title: place.name,
+            position: place.geometry.location
+          }));
+
+          if(place.geometry.viewport)
+          {
+            bounds.union(place.geometry.viewport);
+          }
+          else
+          {
+            bounds.extend(place.geometry.location);
+          }
+        });
+        map.fitBounds(bounds);
+      });
+    }
+    </script>
+    <style type="text/css">
+      html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      #map {
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCce21aJYG27BW4HjgT_SZmb1Fx4TdVh5k&language=zh-TW&callback=initMap&libraries=visualization,places" type="text/javascript"></script>
+  </body>
+</html>
